@@ -1,0 +1,19 @@
+[build-system]
+requires = ["poetry-core==1.1.12"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "Multiframework FL with Flower"
+version = "0.1.0"
+description = "MXNet example with MNIST and CNN"
+authors = ["The Flower Authors <enquiries@flower.dev>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+flwr = "^0.17.0"
+# flwr = { path = "../../", develop = true }  # Development
+mxnet = "^1.7.0"
+torch = "1.10.2"
+torchvision = "0.11.3"
+tensorflow-cpu = "2.8.0"
+openml = "^0.12.2"

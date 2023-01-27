@@ -1,10 +1,27 @@
 import flwr as fl
 import utils
 from sklearn.metrics import log_loss
-from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from typing import Dict
+import numpy as np
 
-MODEL_CONFIG= {'hidden_layer_sizes':(10,2), 'max_iter':100}
+MODEL_CONFIG = {'hidden_layer_sizes': (300,), 'warm_start':True}
+
+def get_model_parameters(model):
+    return model.coefs_ + model.intercepts_
+
+def set_model_params(model, params):
+    n = len(MODEL_CONFIG['hidden_layer_sizes'])
+    model.coefs_ = params[:n + 1]
+    model.intercepts_ = params[n + 1:]
+
+def initialize_model():
+    model = MLPClassifier(**MODEL_CONFIG)
+    # Fitting model to random data to initialize it
+    X = np.random.rand(10, 784)
+    y = np.arange(10)
+    model.partial_fit(X, y, y)
+    return model
 
 def fit_round(server_round: int) -> Dict:
     """Send round number to client."""
@@ -12,7 +29,7 @@ def fit_round(server_round: int) -> Dict:
     return config
 
 
-def get_evaluate_fn(model: LogisticRegression):
+def get_evaluate_fn(model: MLPClassifier):
     """Return an evaluation function for server-side evaluation."""
 
     # Load test data here to avoid the overhead of doing it in `evaluate` itself
@@ -21,7 +38,7 @@ def get_evaluate_fn(model: LogisticRegression):
     # The `evaluate` function will be called after every round
     def evaluate(server_round, parameters: fl.common.NDArrays, config):
         # Update model with the latest parameters
-        utils.set_model_params(model, parameters)
+        set_model_params(model, parameters)
         loss = log_loss(y_test, model.predict_proba(X_test))
         accuracy = model.score(X_test, y_test)
         return loss, {"accuracy": accuracy}
@@ -32,7 +49,7 @@ def get_evaluate_fn(model: LogisticRegression):
 # Start Flower server for five rounds of federated learning
 if __name__ == "__main__":
 
-    model = LogisticRegression(**MODEL_CONFIG)
+    model = initialize_model()
 
     # utils.set_initial_params(model)
     
@@ -44,5 +61,5 @@ if __name__ == "__main__":
     fl.server.start_server(
         server_address="0.0.0.0:8080",
         strategy=strategy,
-        config=fl.server.ServerConfig(num_rounds=5),
+        config=fl.server.ServerConfig(num_rounds=10),
     )

@@ -6,34 +6,61 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
 import flwr as fl
 
-# (X, y), (X_test, y_test) = utils.load_mnist()
+(X_train, y_train), (X_test, y_test) = utils.load_mnist()
 
 # Split train set into 10 partitions and randomly use one for training.
 # partition_id = np.random.choice(10)
 # (X, y) = utils.partition(X, y, 10)[partition_id]
 
+# print(X.shape, y.shape)
 
-
-X = np.array([[0., 0.], [1., 1.]])
+X = np.array([[0], [1]])
 y = np.array([0, 1])
 
+# X = np.random.rand(10,784)
+# y = np.arange(10)
+
+
 # # Ensure y is 2D
-# if y.ndim == 1:
+# if y.ndim == 1:4
 #     y = y.reshape((-1, 1))
 
 
-model = MLPClassifier(hidden_layer_sizes=(4,2,2,5),warm_start=True)
-
-print(model.get_params()['hidden_layer_sizes'])
-
+model = MLPClassifier(hidden_layer_sizes=(1,1),warm_start=True)
 
 model.fit(X, y)
 
 params = model.coefs_ + model.intercepts_
+
+print(model.coefs_)
+print(model.intercepts_)
+
 print(len(model.coefs_))
 print(len(model.intercepts_))
 
-print(len(params))
+print(params[:3])
+print(params[3:])
+
+model.set_params(**{})
+# print(model.get_params()['hidden_layer_sizes'])
+# hidden_layer_sizes = model.get_params()['hidden_layer_sizes']
+# # layer_units = [n_features] + hidden_layer_sizes + [self.n_outputs_]
+# layer_units = [X.shape[1]] + list(hidden_layer_sizes) + [0]
+
+# model._initialize(y.reshape((-1, 1)), layer_units, X.dtype)
+
+# model.partial_fit(X, y, np.unique(y_test))
+
+
+# print(np.unique(y))
+# print(np.unique(y_test))
+
+
+# params = model.coefs_ + model.intercepts_
+# print(len(model.coefs_))
+# print(len(model.intercepts_))
+
+# print(len(params))
 
 # print(model.coefs_)
 # print(len(model.coefs_))

@@ -26,13 +26,11 @@ def initialize_model():
     return model
 
 class MnistNNClient(fl.client.NumPyClient):
-        def __init__(self, X_train, y_train, X_test, y_test) -> None:
+        def __init__(self) -> None:
             super().__init__()
             self.model = initialize_model()
-            self.X_train = X_train
-            self.y_train = y_train
-            self.X_test = X_test
-            self.y_test = y_test
+            _ , (self.X_test, self.y_test) = utils.load_mnist()
+
         
         def get_parameters(self, config):  # type: ignore
             return get_model_parameters(self.model)
@@ -40,11 +38,18 @@ class MnistNNClient(fl.client.NumPyClient):
         def fit(self, parameters, config):  # type: ignore
             set_model_params(self.model, parameters)
             # Ignore convergence failure due to low local epochs
+
+            (X_train, y_train), _ = utils.load_mnist()
+
+            # Split train set into 10 partitions and randomly use one for training.
+            partition_id = np.random.choice(10)
+            (X_train, y_train) = utils.partition(X_train, y_train, 10)[partition_id]
+            
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                self.model.fit(self.X_train, self.y_train)
+                self.model.fit(X_train, y_train)
             print(f"Training finished for round {config['server_round']}")
-            return get_model_parameters(self.model), len(self.X_train), {}
+            return get_model_parameters(self.model), len(X_train), {}
 
         def evaluate(self, parameters, config):  # type: ignore
             set_model_params(self.model, parameters)
@@ -53,12 +58,6 @@ class MnistNNClient(fl.client.NumPyClient):
             return loss, len(self.X_test), {"accuracy": accuracy}
     
 if __name__ == '__main__':
-    (X_train, y_train), (X_test, y_test) = utils.load_mnist()
-
-    # Split train set into 10 partitions and randomly use one for training.
-    partition_id = np.random.choice(10)
-    (X_train, y_train) = utils.partition(X_train, y_train, 10)[partition_id]
-
     # Start Flower client
     fl.client.start_numpy_client(
-        server_address="0.0.0.0:8080", client=MnistNNClient(X_train, y_train, X_test, y_test))
+        server_address="0.0.0.0:8080", client=MnistNNClient())

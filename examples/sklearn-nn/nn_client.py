@@ -7,7 +7,7 @@ from sklearn.metrics import log_loss
 import numpy as np
 import flwr as fl
 
-MODEL_CONFIG = {'hidden_layer_sizes': (300,), 'warm_start':True}
+MODEL_CONFIG = {'hidden_layer_sizes': (50,), 'warm_start':True, 'learning_rate_init':0.1}
 
 def get_model_parameters(model):
     return model.coefs_ + model.intercepts_
@@ -30,7 +30,7 @@ class MnistNNClient(fl.client.NumPyClient):
             super().__init__()
             self.model = initialize_model()
             _ , (self.X_test, self.y_test) = utils.load_mnist()
-
+            self.X_test /= 255.
         
         def get_parameters(self, config):  # type: ignore
             return get_model_parameters(self.model)
@@ -43,11 +43,11 @@ class MnistNNClient(fl.client.NumPyClient):
 
             # Split train set into 10 partitions and randomly use one for training.
             partition_id = np.random.choice(10)
-            (X_train, y_train) = utils.partition(X_train, y_train, 10)[partition_id]
-            
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                self.model.fit(X_train, y_train)
+            # (X_train, y_train) = utils.partition(X_train, y_train, 10)[partition_id]
+            X_train /= 255.
+            # with warnings.catch_warnings():
+                # warnings.simplefilter("ignore")
+            self.model.fit(X_train, y_train)
             print(f"Training finished for round {config['server_round']}")
             return get_model_parameters(self.model), len(X_train), {}
 

@@ -7,6 +7,32 @@ from sklearn.metrics import log_loss
 import flwr as fl
 
 (X_train, y_train), (X_test, y_test) = utils.load_mnist()
+MODEL_CONFIG = {'hidden_layer_sizes': (50,), 'warm_start': True}
+
+def initialize_model():
+    model = MLPClassifier(**MODEL_CONFIG)
+    # Fitting model to random data to initialize it
+    X = np.random.rand(10, 784)
+    y = np.arange(10)
+    model.partial_fit(X,y,y)
+    return model
+
+def get_model_parameters(model):
+    return model.coefs_ + model.intercepts_
+
+def set_model_params(model, params):
+    n = len(MODEL_CONFIG['hidden_layer_sizes'])
+    model.coefs_ = params[:n + 1]
+    model.intercepts_ = params[n + 1:]
+
+model = initialize_model()
+# model.fit(X_train, y_train)
+set_model_params(model, get_model_parameters(model))
+loss = log_loss(y_test, model.predict_proba(X_test))
+accuracy = model.score(X_test, y_test)
+print( loss, {"accuracy": accuracy})
+
+print(X_train.shape)
 
 # Split train set into 10 partitions and randomly use one for training.
 # partition_id = np.random.choice(10)
@@ -14,8 +40,8 @@ import flwr as fl
 
 # print(X.shape, y.shape)
 
-X = np.array([[0], [1]])
-y = np.array([0, 1])
+# X = np.array([[0], [1]])
+# y = np.array([0, 1])
 
 # X = np.random.rand(10,784)
 # y = np.arange(10)
@@ -26,22 +52,22 @@ y = np.array([0, 1])
 #     y = y.reshape((-1, 1))
 
 
-model = MLPClassifier(hidden_layer_sizes=(1,1),warm_start=True)
+# model = MLPClassifier(hidden_layer_sizes=(1,1),warm_start=True)
 
-model.fit(X, y)
+# model.fit(X, y)
 
-params = model.coefs_ + model.intercepts_
+# params = model.coefs_ + model.intercepts_
 
-print(model.coefs_)
-print(model.intercepts_)
+# print(model.coefs_)
+# print(model.intercepts_)
 
-print(len(model.coefs_))
-print(len(model.intercepts_))
+# print(len(model.coefs_))
+# print(len(model.intercepts_))
 
-print(params[:3])
-print(params[3:])
+# print(params[:3])
+# print(params[3:])
 
-model.set_params(**{})
+# model.set_params(**{})
 # print(model.get_params()['hidden_layer_sizes'])
 # hidden_layer_sizes = model.get_params()['hidden_layer_sizes']
 # # layer_units = [n_features] + hidden_layer_sizes + [self.n_outputs_]

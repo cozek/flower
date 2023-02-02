@@ -5,7 +5,7 @@ from sklearn.neural_network import MLPClassifier
 from typing import Dict
 import numpy as np
 
-MODEL_CONFIG = {'hidden_layer_sizes': (300,), 'warm_start':True}
+MODEL_CONFIG = {'hidden_layer_sizes': (50,), 'warm_start':True}
 
 def get_model_parameters(model):
     return model.coefs_ + model.intercepts_
@@ -34,6 +34,7 @@ def get_evaluate_fn(model: MLPClassifier):
 
     # Load test data here to avoid the overhead of doing it in `evaluate` itself
     _, (X_test, y_test) = utils.load_mnist()
+    X_test /= 255.
 
     # The `evaluate` function will be called after every round
     def evaluate(server_round, parameters: fl.common.NDArrays, config):

@@ -40,7 +40,9 @@ class FedMDClient(fl.client.NumPyClient):
         self.public_testloader = DataLoader(
             self.public_test, batch_size=32, shuffle=True
         )
-        self.intial_training(initial_train_epochs)
+
+        self.intial_training_epochs = initial_train_epochs
+        # self.intial_training(initial_train_epochs)
 
 
     def intial_training(self, epochs: int):
@@ -49,6 +51,8 @@ class FedMDClient(fl.client.NumPyClient):
         res_private = utils.train(self.net, self.private_trainloader, epochs)
         print(f'Training Result on Public Data: {res_public}')
         print(f'Training Result on Private Data: {res_private}')
+
+        return res_public
 
     def get_class_scores(self, config, device:str ='cpu'):
         # calculate class scores on the public dataset
@@ -90,8 +94,11 @@ class FedMDClient(fl.client.NumPyClient):
     def fit(
         self, parameters: NDArrays, config: Dict[str, Scalar]
     ) -> Tuple[NDArrays, int, Dict[str, Scalar]]:
-        self.digest(parameters, 10, device='cpu')
-        results = self.revisit(2)
+        if config['server_round'] == 1:
+            results = self.intial_training(self.intial_training_epochs)
+        else:
+            self.digest(parameters, 10, device='cpu')
+            results = self.revisit(2)
         scores = self.get_class_scores(config)
         parameters = scores
         num_examples_train = len(self.private_train)
@@ -138,11 +145,30 @@ def test_client():
     print(scores[0].shape)
 
     res = C.fit(scores,{})
-    
+    print(res)
+
+def main():
+    public_data: Tuple = utils.load_partition(0) # let partition 0 be public dataset
+    private_data: Tuple = utils.load_partition(1)
+    net = utils.Net()
+    initial_train_epochs = 1
+
+    C = FedMDClient(
+        private_data=  private_data, 
+        public_data= public_data, 
+        net = net,
+        initial_train_epochs = initial_train_epochs
+    )
+
+    fl.client.start_numpy_client(server_address="0.0.0.0:8080", client=C)
 
 if __name__ == "__main__":
     # test_net()
-    test_client()
+    # test_client()
+    main()
+
+
+    
 
     # client = FlowerClient(public_data, private_data, net)
 

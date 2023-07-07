@@ -8,13 +8,20 @@ import flwr as fl
 from torch.utils.data import DataLoader
 
 
-class FlowerClient(fl.client.NumPyClient):
+class FedMDClient(fl.client.NumPyClient):
     def __init__(
             self, 
             private_data: Tuple, 
             public_data: Tuple, 
-            net: nn.Module
+            net: nn.Module,
+            initial_train_epochs: int = 10
         ) -> None:
+        '''
+            private_data: Tuple[trainset, testset] 
+            public_data: Tuple[trainset, testset] 
+            net: nn.Module
+            initial_train_epochs: int = 10
+        '''
         super().__init__()
         self.private_train, self.private_test = private_data
         self.public_train, self.public_test = public_data
@@ -33,15 +40,15 @@ class FlowerClient(fl.client.NumPyClient):
         self.public_testloader = DataLoader(
             self.public_test, batch_size=32, shuffle=True
         )
-        self.intial_training(10)
+        self.intial_training(initial_train_epochs)
 
 
     def intial_training(self, epochs: int):
         # TransferLearning: Train to convergence on public data and private data
         res_public = utils.train(self.net, self.public_trainloader, epochs)
         res_private = utils.train(self.net, self.private_trainloader, epochs)
-        print(f'Result Public: {res_public}')
-        print(f'Result Private: {res_private}')
+        print(f'Training Result on Public Data: {res_public}')
+        print(f'Training Result on Private Data: {res_private}')
 
     def get_class_scores(self, config, device:str ='cpu'):
         # calculate class scores on the public dataset
@@ -49,7 +56,7 @@ class FlowerClient(fl.client.NumPyClient):
         with torch.no_grad():
             for images, labels in self.public_trainloader:
                 images, labels = images.to(device), labels.to(device)
-                outputs = net(images)
+                outputs = self.net(images)
                 scores.append(outputs.numpy())
         return scores
 
@@ -57,17 +64,19 @@ class FlowerClient(fl.client.NumPyClient):
         # Train private model to approach concensus f on public dataset
         criterion = torch.nn.CrossEntropyLoss().to(device)
         optimizer = torch.optim.SGD(
-            net.parameters(), lr=0.1, momentum=0.9, weight_decay = 1e-4
+            self.net.parameters(), lr=0.1, momentum=0.9, weight_decay = 1e-4
         )
-        net.train()
+        self.net.train()
         for _ in range(epochs):
-            for images, _ in zip(self.public_trainloader, consensus):
+            for sample, con in zip(self.public_trainloader, consensus):
+                images,lables = sample
+                con = torch.Tensor(con).to(device)
                 images = images.to(device)
                 optimizer.zero_grad()
-                loss = criterion(net(images), consensus)
+                loss = criterion(self.net(images), con)
                 loss.backward()
                 optimizer.step()
-        net.to('cpu')
+        self.net.to('cpu')
 
     def revisit(self, epochs:int):
         results = utils.train(self.net, self.public_trainloader, epochs)
@@ -91,11 +100,11 @@ class FlowerClient(fl.client.NumPyClient):
     def evaluate(
         self, parameters: NDArrays, config: Dict[str, Scalar]
     ) -> Tuple[float, int, Dict[str, Scalar]]:
-        loss, accuracy = utils.test(net, self.private_testloader, None)
+        loss, accuracy = utils.test(self.net, self.private_testloader, None)
         return float(loss), len(self.private_test), {"accuracy": float(accuracy)}
 
 
-if __name__ == "__main__":
+def test_net():
     public_data: Tuple = utils.load_partition(0) # let partition 0 be public dataset
     private_data: Tuple = utils.load_partition(1)
     net = utils.Net()
@@ -110,6 +119,30 @@ if __name__ == "__main__":
     print(labels)
     print(output)
     print(output.shape)
+
+def test_client():
+    public_data: Tuple = utils.load_partition(0) # let partition 0 be public dataset
+    private_data: Tuple = utils.load_partition(1)
+    net = utils.Net()
+    initial_train_epochs = 1
+
+    C = FedMDClient(
+        private_data=  private_data, 
+        public_data= public_data, 
+        net = net,
+        initial_train_epochs = initial_train_epochs
+    )
+
+    scores = C.get_class_scores({})
+    print(len(scores))
+    print(scores[0].shape)
+
+    res = C.fit(scores,{})
+    
+
+if __name__ == "__main__":
+    # test_net()
+    test_client()
 
     # client = FlowerClient(public_data, private_data, net)
 
